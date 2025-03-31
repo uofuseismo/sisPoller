@@ -2,11 +2,14 @@
 
 The SIS poller works by comparing the time stamps in the SIS files of interest to the time stamps in a local database.  When the [last modified](https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/UU/) time exceeds the time that is in the local database then an email is sent to interested parties. 
 
-# Create the Database
+## Getting Started
+
+To get this up and running requires two steps.  The first is creating a database.  Then, once the database is created, pushing the initial set of files.
+### Create the Database
 
 To enable the SIS polling script to detect relevant updates it must compare the last modified time with a locally stored time.  To allow this to happen, we must create a database.  Originally, the updating was done with respect to a sqlite3 database but as our network is shifting job deployment strategies we now use a Postgres database.
 
-## Postgres
+#### Postgres
 
 As user postgres you can run the following script to create a sis\_poller database
 
@@ -51,10 +54,9 @@ where createDatabase.sql assumes you have defined read\_write and read\_only rol
     CREATE USER sis_poller_viewer WITH PASSWORD 'sis_poller_browser';
     GRANT read_only TO sis_poller_viewer;
 
-
 Should you not have these read\_write and read\_only roles, then you will have to uncomment the appropriate lines above.
 
-## SQLite3
+#### SQLite3
 
 Note, the following is minimally tested.  As any the SIS poller user you can run the following script to create a local sqlite3 database
 
@@ -74,3 +76,24 @@ Note, the following is minimally tested.  As any the SIS poller user you can run
         last_modified DATE DEFAULT (datetime('now','UTC'))
     );
     EOL
+
+### Using Postgres
+
+If using a Postgres database, you must set the following environment variables for the user running poller.py
+
+1. SIS_POLLER_READ_WRITE_USER (the read-write user's name)
+2. SIS_POLLER_READ_WRITE_PASSWORD (the read-write user's password)
+3. SIS_POLLER_DATABASE (the database name, e.g., sis_poller)
+4. SIS_POLLER_HOST (by default this is localhost)
+5. SIS_POLLER_SCHEMA (the schema, e.g., production)
+6. SIS_POLLER_PORT (by default this is 5432)
+    
+### Initial Push
+
+The initial set of timestamps is input into the database with something like
+
+   python3 poller.py -i
+
+## General Usage
+
+
