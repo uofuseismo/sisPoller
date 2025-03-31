@@ -92,7 +92,7 @@ If using a Postgres database, you must set the following environment variables f
 
 The initial set of timestamps is input into the database with something like
 
-   python3 poller.py -i
+    python3 poller.py -i
 
 ## General Usage
 
