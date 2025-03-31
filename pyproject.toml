@@ -1,0 +1,50 @@
+[project]
+name = "sis_poller"
+dynamic = ["version"]
+description = "A utility at UUSS for checking SIS for station updates."
+authors = [
+    {name = "Ben Baker", email = "ben.baker@utah.edu"}
+]
+maintainers = [
+    {name = "Ben Baker", email = "ben.baker@utah.edu"}
+}
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.8"
+
+dependencies = [
+    "sqlalchemy>=2.0",
+    "numpy>=2.0",
+    "pandas=2.2.3",
+    "psycopg[binary]",
+    "bs4>=4.12.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "check-manifest",
+#    "build>=0.7.0",
+#    "black>=21",
+]
+#doc = [
+#    "sphinx>5.0.0",
+#    "sphinx-autoapi>=2.1.0",
+#]
+build = [
+    "build",
+    "twine",
+    "check-wheel-contents",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/uofuseismo/sisPoller"
+
+
+[project.scripts]
+sis_poller = "poller:main"
+
+[build-system]
+requires = [
+  "setuptools>=42",
+]
+build-backend = "setuptools.build_meta"
