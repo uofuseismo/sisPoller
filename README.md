@@ -5,6 +5,7 @@ The SIS poller works by comparing the time stamps in the SIS files of interest t
 ## Getting Started
 
 To get this up and running requires two steps.  The first is creating a database.  Then, once the database is created, pushing the initial set of files.
+
 ### Create the Database
 
 To enable the SIS polling script to detect relevant updates it must compare the last modified time with a locally stored time.  To allow this to happen, we must create a database.  Originally, the updating was done with respect to a sqlite3 database but as our network is shifting job deployment strategies we now use a Postgres database.
@@ -87,6 +88,12 @@ If using a Postgres database, you must set the following environment variables f
 4. SIS_POLLER_HOST (by default this is localhost)
 5. SIS_POLLER_SCHEMA (the schema, e.g., production)
 6. SIS_POLLER_PORT (by default this is 5432)
+
+### Installation
+
+After the databases have been decided upon, you can install the software
+
+    /path/to/pip install -e .
     
 ### Initial Push
 
