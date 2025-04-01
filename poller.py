@@ -394,5 +394,5 @@ Note, to use Postgres you must set the following Postgres database environment v
     sys.exit(0)
 
 if __name__ == "__main__":
-   poller()
+   sis_poller()
 
