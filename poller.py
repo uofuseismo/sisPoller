@@ -212,7 +212,7 @@ def fetch_xml_last_update_table(url, keeper_list = None):
     df = pd.DataFrame(ds)
     return df
 
-if __name__ == "__main__":
+def sis_poller():    
     parser = argparse.ArgumentParser(description = '''
 Queries SIS and, if there was an update, sends an email to interested parties.\n
 
@@ -392,3 +392,7 @@ Note, to use Postgres you must set the following Postgres database environment v
             logging.error("Failed sending email with error {}".format(e))
             sys.exit(1) 
     sys.exit(0)
+
+if __name__ == "__main__":
+   poller()
+
