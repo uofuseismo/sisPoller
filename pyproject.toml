@@ -7,7 +7,7 @@ authors = [
 ]
 maintainers = [
     {name = "Ben Baker", email = "ben.baker@utah.edu"}
-}
+]
 license = {file = "LICENSE"}
 readme = "README.md"
 requires-python = ">=3.8"
