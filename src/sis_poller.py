@@ -270,7 +270,7 @@ def send_message(host : str,
     if (len(endpoint) > 0):
         api_url = os.path.join(api_url, endpoint)
     if (logger):
-        logger.info("Sending {} to {}...".format(alarm_name, endpoint) )
+        logger.info("Sending SIS email to {}...".format(endpoint) )
     response = requests.put(api_url, headers = headers, json = {'payload': data})
     try:
         json_info = response.json().dumps()
@@ -474,7 +474,7 @@ Note, to use Postgres you must set the following Postgres database environment v
     # Send email - if necessary
     if (len(update_message) > 0):
         try:
-            logging.info("Emailing {}".format(args.recipient))
+            logging.info("Sending email request to AWS....")
             send_message(host = args.email_url,
                          api_key = args.email_api_key,
                          topic = args.email_topic,
@@ -487,6 +487,7 @@ Note, to use Postgres you must set the following Postgres database environment v
                          logger = logging)
 
             """
+            logging.info("Emailing {}".format(args.recipient))
             email_message = create_email_message(subject = 'SIS Updates',
                                                  contents = update_message,
                                                  to_address = args.recipient,
