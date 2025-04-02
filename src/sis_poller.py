@@ -217,10 +217,10 @@ def fetch_xml_last_update_table(url, keeper_list = None):
 def send_message(host : str,
                  api_key : int,
                  topic : str,
-                 notification_type : str = 'update_email',
                  subject : str,
                  message : str,
                  message_identifier : str,
+                 notification_type : str = 'update_email',
                  endpoint : str = 'Email',
                  source : str = os.uname()[1].split('.')[0],
                  logger = None):
