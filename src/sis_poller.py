@@ -10,6 +10,7 @@ import pandas as pd
 import logging
 import datetime
 import psycopg
+import requests
 from bs4 import BeautifulSoup
 from urllib.request import urlopen, urlretrieve
 from sqlalchemy import create_engine
