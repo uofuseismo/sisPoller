@@ -106,12 +106,19 @@ After the databases have been decided upon, you can install the software
 
     /path/to/pip install -e .
     
-### Initial Push
+### Initialize Data in Database
 
 The initial set of timestamps is input into the database with something like
 
     python3 poller.py -i
 
+This action will not result in an email being sent.
+
 ## General Usage
 
+Now that the database is created and populated, typical usage involves something akin to 
+
+    python3 poller.py
+
+on regular intervals (e.g., daily).
 
