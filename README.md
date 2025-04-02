@@ -2,6 +2,17 @@
 
 The SIS poller works by comparing the time stamps in the SIS files of interest to the time stamps in a local database.  When the [last modified](https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/UU/) time exceeds the time that is in the local database then an email is sent to interested parties. 
 
+In practice, this workflow is a little more complicated at UUSS.
+
+   1.  Launch a container that uses the software in this repository to
+       *  Scrape SIS
+       *  Update a Postgres database
+       *  Provided an update is detected send a PUT request to an AWS gateway.
+   2.  At AWS
+       *  Pass the PUT request to a Lambda function
+       *  The Lambda validates the request and propagates to SNS
+       *  Interested parties that are subscribed to the appropriate SNS topics then receive emails
+
 ## Getting Started
 
 To get this up and running requires two steps.  The first is creating a database.  Then, once the database is created, pushing the initial set of files.
