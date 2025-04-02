@@ -305,6 +305,9 @@ Note, to use Postgres you must set the following Postgres database environment v
     SIS_POLLER_SCHEMA
     SIS_POLLER_PORT (by default this is 5432)
 
+To send emails you must configure AWS API Gatway, Lambda, and SNS and set
+    AWS_API_SIS_URL
+    AWS_API_SIS_ACCESS_KEY
 ''',
                                    formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-s', '--sqlite3_file',
