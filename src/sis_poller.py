@@ -213,6 +213,72 @@ def fetch_xml_last_update_table(url, keeper_list = None):
     df = pd.DataFrame(ds)
     return df
 
+def send_message(host : str,
+                 api_key : int,
+                 topic : str,
+                 alarm_name : str,
+                 subject : str,
+                 message : str,
+                 message_identifier : str,
+                 endpoint : str = 'Email',
+                 source : str = os.uname()[1].split('.')[0],
+                 logger = None):
+    """ 
+    Sends the SMS alarm to the API gateway.  
+
+    Parameters
+    ----------
+    host : str
+        The address of the API.
+    api_key : str
+        The API's access key.
+    topic : str
+        The SNS tpoic at AWS to which to publish this message.
+        This can be 'test' or 'production'.
+    subject : str
+        The email's subject.
+    message : str
+        The 1400 character or less string to send to the users.
+        If the message exceeds this length then it will be broken
+        into 140 character pieces by AWS SNS's SMS client.
+    message_identifier : str
+        A unique message identifier.  This could be used for deduplication if
+        the SNS is a FIFO queue.
+    endpoint : str
+        Something to append to the host API URL - e.g., 'SMS' or 'Email'.
+    source : str
+        The source machine sending the message.
+    logger 
+        The logger from Python's logging utility, e.g., import logging.
+    """
+
+    data = {'subject': subject,
+            'message': message,
+            'topic': topic.lower(),
+            'messageIdentifier': message_identifier,
+            'source': source,
+           }
+    headers = {'x-api-key': api_key,
+               'Content-Type': 'application/json',
+               'Accept' : 'application/json'}
+    api_url = host
+    if (len(endpoint) > 0):
+        api_url = os.path.join(api_url, endpoint)
+    if (logger):
+        logger.info("Sending {} to {}...".format(alarm_name, endpoint) )
+    response = requests.put(api_url, headers = headers, json = {'payload': data})
+    try:
+        json_info = response.json().dumps()
+    except:
+        json_info = ''
+    if (response.ok):
+        logger.info("Successfully submitted message to API.  {}".format(json_info))
+    else:
+        if (response.status_code == 403):
+            raise Exception("Failed to access API with credentials")
+        raise Exception("API request failed with {} {}".format(response.status_code, json_info))
+
+
 def main():    
     parser = argparse.ArgumentParser(description = '''
 Queries SIS and, if there was an update, sends an email to interested parties.\n
@@ -264,6 +330,18 @@ Note, to use Postgres you must set the following Postgres database environment v
                         type = int,
                         help = 'controls the verbosity (1 errors/warnings, 2 errors/warnings/info, 3 errors/warnings/info/debug)',
                         default = 2)
+    parser.add_argument('--email_url',
+                        type = str,
+                        help = 'the URL endpoint of the AWS email server',
+                        default = os.getenv('AWS_API_SIS_URL'))
+    parser.add_argument("--email_api_key',
+                        type = str,
+                        help = 'the corresponding API Key for the AWS email server',
+                        default = os.getenv('AWS_API_SIS_ACCESS_KEY'))
+    parser.add_argument("--email_topic',
+                        type = str,
+                        help = 'the SNS topic - this can be test or production',
+                        default = 'production')
     args = parser.parse_args()
 
     if (not os.path.exists(args.log_directory)):
@@ -287,9 +365,11 @@ Note, to use Postgres you must set the following Postgres database environment v
                         format='%(asctime)s %(levelname)-8s %(message)s',
                         level = log_level,
                         datefmt='%Y-%m-%d %H:%M:%S')
-
+    subject = 'SIS Test'
     update_message = ''
     if (not args.test):
+        subject = 'SIS Update'
+        message_identifier = 'sisUpdateMessage_{}'.format(np.random.randint(0, high=1000000))
         search_path = None
         if (args.sqlite3_file is not None):
             logging.info("Attempting to use sqlite3")
@@ -377,18 +457,32 @@ Note, to use Postgres you must set the following Postgres database environment v
             sys.exit(1)
     else:
         logging.info("Creating test email message")
+        subject = 'SIS Test'
         update_message = 'Test email from SIS poller'
+        message_identifier = 'sisTestMessage_{}'.format(np.random.randint(0, high=1000000))
 
     # Send email - if necessary
     if (len(update_message) > 0):
         try:
             logging.info("Emailing {}".format(args.recipient))
+            send_message(host = args.email_url,
+                         api_key = args.api_key,
+                         topic = args.email_topic,
+                         subject = subject,
+                         message = update_message,
+                         message_identifier = message_identifier,
+                         endpoint = 'Email',
+                         source = source,
+                         logger = logging)
+
+            """
             email_message = create_email_message(subject = 'SIS Updates',
                                                  contents = update_message,
                                                  to_address = args.recipient,
                                                  from_address = os.uname()[1])
             logging.debug("Sending message {}".format(email_message))
-            #send_email(email_message)   
+            #send_email(email_message)
+            """
         except Exception as e:
             logging.error("Failed sending email with error {}".format(e))
             sys.exit(1) 
