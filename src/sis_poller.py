@@ -335,11 +335,11 @@ Note, to use Postgres you must set the following Postgres database environment v
                         type = str,
                         help = 'the URL endpoint of the AWS email server',
                         default = os.getenv('AWS_API_SIS_URL'))
-    parser.add_argument("--email_api_key',
+    parser.add_argument('--email_api_key',
                         type = str,
                         help = 'the corresponding API Key for the AWS email server',
                         default = os.getenv('AWS_API_SIS_ACCESS_KEY'))
-    parser.add_argument("--email_topic',
+    parser.add_argument('--email_topic',
                         type = str,
                         help = 'the SNS topic - this can be test or production',
                         default = 'production')
