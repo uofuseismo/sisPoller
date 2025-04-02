@@ -298,6 +298,9 @@ Example to initialize StationXML update database\n
 Example to check for StationXML updates using sqlite3:\n
     poller.py --sqlite3_file=xmlUpdates.sqlite3 --recipient=user@domain.com --verbosity=2\n
 
+Example to send a test notification\n
+    poller.py -t
+    
 Note, to use Postgres you must set the following Postgres database environment variables:
     SIS_POLLER_READ_WRITE_USER
     SIS_POLLER_READ_WRITE_PASSWORD
