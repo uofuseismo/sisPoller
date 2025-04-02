@@ -19,7 +19,8 @@ RUN cd /home/ubuntu &&\
     pyenv/bin/pip install pandas==2.2.3 &&\ 
     pyenv/bin/pip install bs4==0.0.2 &&\ 
     pyenv/bin/pip install psycopg[binary]==3.2 &&\ 
-    pyenv/bin/pip install sqlalchemy==2.0.40
+    pyenv/bin/pip install sqlalchemy==2.0.40 &&\
+    pyenv/bin/pip install requests==2.32.3
 
 RUN cd /home/ubuntu &&\
     git clone https://github.com/uofuseismo/sisPoller.git &&\
