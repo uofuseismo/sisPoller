@@ -375,12 +375,12 @@ To send emails you must configure AWS API Gatway, Lambda, and SNS and set
                         format='%(asctime)s %(levelname)-8s %(message)s',
                         level = log_level,
                         datefmt='%Y-%m-%d %H:%M:%S')
-    subject = 'SIS Test'
+    subject = 'SIS Poller Test Notification'
     update_message = ''
     message_identifier = 'sisPollerEmailMessage'
     notification_type = 'test_email'
     if (not args.test):
-        subject = 'SIS Update'
+        subject = 'SIS Poller Update Notification'
         message_identifier = 'sisUpdateMessage_{}'.format(np.random.randint(0, high=1000000))
         notification_type = 'update_email'
         search_path = None
@@ -470,7 +470,7 @@ To send emails you must configure AWS API Gatway, Lambda, and SNS and set
             sys.exit(1)
     else:
         logging.info("Creating test email message")
-        subject = 'SIS Test'
+        subject = 'SIS Poller Test Notification'
         update_message = 'Test email from SIS poller'
         notification_type = 'test_email'
         message_identifier = 'sisTestMessage_{}'.format(np.random.randint(0, high=1000000))
