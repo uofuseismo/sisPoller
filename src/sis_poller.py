@@ -217,7 +217,7 @@ def fetch_xml_last_update_table(url, keeper_list = None):
 def send_message(host : str,
                  api_key : int,
                  topic : str,
-                 alarm_name : str,
+                 notification_type : str = 'update_email',
                  subject : str,
                  message : str,
                  message_identifier : str,
@@ -236,6 +236,9 @@ def send_message(host : str,
     topic : str
         The SNS tpoic at AWS to which to publish this message.
         This can be 'test' or 'production'.
+    notification_type : str
+        The notification type which will allow user's to filter messages.  
+        This can be 'update_email' or 'test_email'.
     subject : str
         The email's subject.
     message : str
@@ -256,6 +259,7 @@ def send_message(host : str,
     data = {'subject': subject,
             'message': message,
             'topic': topic.lower(),
+            'notificationType': notification_type.lower(),
             'messageIdentifier': message_identifier,
             'source': source,
            }
@@ -369,9 +373,12 @@ Note, to use Postgres you must set the following Postgres database environment v
                         datefmt='%Y-%m-%d %H:%M:%S')
     subject = 'SIS Test'
     update_message = ''
+    message_identifier = 'sisPollerEmailMessage'
+    notification_type = 'test_email'
     if (not args.test):
         subject = 'SIS Update'
         message_identifier = 'sisUpdateMessage_{}'.format(np.random.randint(0, high=1000000))
+        notification_type = 'update_email'
         search_path = None
         if (args.sqlite3_file is not None):
             logging.info("Attempting to use sqlite3")
@@ -461,6 +468,7 @@ Note, to use Postgres you must set the following Postgres database environment v
         logging.info("Creating test email message")
         subject = 'SIS Test'
         update_message = 'Test email from SIS poller'
+        notification_type = 'test_email'
         message_identifier = 'sisTestMessage_{}'.format(np.random.randint(0, high=1000000))
 
     # Send email - if necessary
@@ -470,6 +478,7 @@ Note, to use Postgres you must set the following Postgres database environment v
             send_message(host = args.email_url,
                          api_key = args.email_api_key,
                          topic = args.email_topic,
+                         notification_type = notification_type,
                          subject = subject,
                          message = update_message,
                          message_identifier = message_identifier,
