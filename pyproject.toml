@@ -1,6 +1,6 @@
 [project]
 name = "sis_poller"
-version = "2025.0.0"
+version = "0.0.1"
 description = "A utility at UUSS for checking SIS for station updates."
 authors = [
     {name = "Ben Baker", email = "ben.baker@utah.edu"}
