@@ -1,6 +1,6 @@
 [project]
 name = "sis_poller"
-dynamic = ["version"]
+version = "2025.0.0"
 description = "A utility at UUSS for checking SIS for station updates."
 authors = [
     {name = "Ben Baker", email = "ben.baker@utah.edu"}
