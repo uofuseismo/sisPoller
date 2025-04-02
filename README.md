@@ -15,7 +15,7 @@ In practice, this workflow is a little more complicated at UUSS.
 
 ## Getting Started
 
-To get this up and running requires two steps.  The first is creating a database.  Then, once the database is created, pushing the initial set of files.
+To get this up and running requires two steps.  The first is creating a database.  Then, once the database is created, populating the database with an initial batch of last update times.
 
 ### Create the Database
 
