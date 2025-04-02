@@ -271,6 +271,7 @@ def send_message(host : str,
         api_url = os.path.join(api_url, endpoint)
     if (logger):
         logger.info("Sending SIS email to {}...".format(endpoint) )
+        logger.info("Payload is {}".format(data))
     response = requests.put(api_url, headers = headers, json = {'payload': data})
     try:
         json_info = response.json().dumps()
