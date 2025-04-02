@@ -344,6 +344,7 @@ Note, to use Postgres you must set the following Postgres database environment v
                         help = 'the SNS topic - this can be test or production',
                         default = 'production')
     args = parser.parse_args()
+    source = os.uname()[1].split('.')[0]
 
     if (not os.path.exists(args.log_directory)):
         os.makedirs(args.log_directory)
