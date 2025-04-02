@@ -467,7 +467,7 @@ Note, to use Postgres you must set the following Postgres database environment v
         try:
             logging.info("Emailing {}".format(args.recipient))
             send_message(host = args.email_url,
-                         api_key = args.api_key,
+                         api_key = args.email_api_key,
                          topic = args.email_topic,
                          subject = subject,
                          message = update_message,
