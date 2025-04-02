@@ -1,0 +1,27 @@
+# Purpose: Creates the image for the SIS poller software.
+# podman build -t sis_poller_u24:latest -f Dockerfile.u24
+FROM ubuntu:24.04
+MAINTAINER Ben Baker <ben.baker@utah.edu>
+USER root
+
+RUN apt-get update &&\ 
+    apt-get install -y bash &&\ 
+    apt-get install -y git &&\ 
+    apt-get install -y python3 &&\ 
+    apt-get install -y sqlite3
+
+USER ubuntu
+SHELL ["/bin/bash", "-c"]
+
+RUN cd /home/ubuntu &&\ 
+    python3 -m venv pyenv &&\ 
+    pyenv/bin/pip install numpy==2.2.4 &&\ 
+    pyenv/bin/pip install pandas==2.2.3 &&\ 
+    pyenv/bin/pip install bs4==0.0.2 &&\ 
+    pyenv/bin/pip install psycopg[binary]==3.2 &&\ 
+    pyenv/bin/pip install sqlalchemy==2.0.40
+
+RUN cd /home/ubuntu &&\
+    git clone https://github.com/uofuseismo/sisPoller.git &&\
+    cd sisPoller &&\
+    pip install -e .
