@@ -1,0 +1,19 @@
+[package]
+name = "sisPoller"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/uofuseismo/sisPoller"
+description = "Polls the Station Information System XML files for updates."
+authors = ["Ben Baker (UUSS)"]
+license = "MIT"
+
+[dependencies]
+serde = "1.0.219"
+reqwest = { version = "0.12.20", features = ["blocking"] }
+scraper = "0.22.0"
+table-extract = "0.2.3"
+scan_fmt = "0.2.6"
+chrono = "0.4.41"
+postgres = "0.19.10"
+env_logger = "0.11.8"
+log = "0.4.27"
