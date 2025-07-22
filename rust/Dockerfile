@@ -16,18 +16,16 @@ USER appuser
 WORKDIR /home/appuser
 
 RUN cd /home/appuser &&\
+    mkdir -p bin &&\
     git clone https://github.com/uofuseismo/sisPoller.git &&\
     cd sisPoller/rust &&\
-    cargo build --release --target-dir=/home/appuser/ &&\
-    cd /home/appuser &&\
-    rm -rf sisPoller &&\
-    rm -r build &&\
-    rm -r deps &&\
-    rm -r examples &&\
-    rm -r incremental &&\
-    rm sisPoller.d
-
-WORKDIR /home/appuser/release
+    cargo build --release --target-dir=./production &&\
+    cp production/release/sisPoller /home/appuser/bin &&\
+    cd /home/appuser/ &&\
+    rm -rf sisPoller
+    
+ENV PATH="$PATH:/home/appuser/bin"
+WORKDIR /home/appuser/
 #RUN RUST_LOG=info ./sisPoller
 #RUN RUST_LOG=info ./sisPoller
 
