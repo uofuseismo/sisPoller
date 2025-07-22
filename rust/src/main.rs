@@ -27,7 +27,8 @@ fn post_to_api(uri : &str,
                topic : &str,
                notification_type : &str,
                message_identifier : &str) -> Result<String, Box<dyn std::error::Error>> {
-   let source = format!("{:?}", gethostname::gethostname());
+   //let source = format!("{:?}", gethostname::gethostname());
+   let source = String::from("rustSISPoller"); 
    let payload
        = serde_json::json!({
             "payload": {"subject": subject,
@@ -37,18 +38,7 @@ fn post_to_api(uri : &str,
                         "messageIdentifier": message_identifier,
                         "source": source}
                        });
-    log::info!("{}", payload.to_string());
-/*
-    map.insert("subject", subject);
-    map.insert("message", message);
-    map.insert("topic", topic);
-    map.insert("notificationType", notification_type.to_lowercase());
-    map.insert("messageIdentifier", message_identifier);
-    map.insert("source", source);
-    headers = {'x-api-key': api_key,
-               'Content-Type': 'application/json',
-               'Accept' : 'application/json'}
-*/
+   log::debug!("Sending payload: {}", payload.to_string());
    let client = reqwest::blocking::Client::new();
    let response = client.put(uri)
                  .header("x-api-key", api_key)
@@ -58,10 +48,11 @@ fn post_to_api(uri : &str,
                  .send()?;
 
    if response.status() == 200 {
-      log::info!("Successfully posted to API");
+      log::debug!("Successfully put to API");
       let document_text = response.text()?.clone();
       return Ok(document_text);
    }
+   log::warn!("Errors detected while putting message to API");
    return Err("Failed to post message".into());
 
 }
@@ -219,9 +210,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
       .expect("Cannot find SIS_NOTIFICATION_API_URI");
    let notification_api_key = std::env::var("SIS_NOTIFICATION_API_KEY")
       .unwrap_or("".to_string()); //expect("Cannot find SIS_NOTIFICATION_API_KEY");
-
-   let notification_topic : String = "test".to_string(); // Can be production or test
-   let notification_type : String = "update_email".to_string(); // Can be test_email or update_email
+   let notification_topic = std::env::var("SIS_NOTIFICATION_API_TOPIC")
+      .unwrap_or("production".to_string()); // Can be production or test
+   let notification_type = std::env::var("SIS_NOTIFICATION_API_TYPE")
+      .unwrap_or("update_email".to_string()); // Can be test_email or update_email
+   //let notification_topic : String = "test".to_string(); // Can be production or test
+   //let notification_type : String = "update_email".to_string(); // Can be test_email or update_email
 
    // Initializing my logger
    env_logger::init();
@@ -300,8 +294,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     &notification_type,
                                     &message_identifier);
       match post_result {
-         Ok(_post_result) => {
-            log::info!("Succesfully put message to API");
+         Ok(post_result) => {
+            log::info!("Succesfully put message to API {post_result:?}");
          }
          Err(error) => {
             log::warn!("Failed to post message to API: {error:?}");
