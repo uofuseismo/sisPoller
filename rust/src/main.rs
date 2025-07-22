@@ -20,6 +20,69 @@ fn get_stations_from_pg(connection_uri : &str, schema : &str) -> Result<Vec<Stat
    return Ok(stations);
 }
 
+fn post_to_api(uri : &str,
+               api_key : &str,
+               subject : &str,
+               message : &str,
+               topic : &str,
+               notification_type : &str,
+               message_identifier : &str) -> Result<String, Box<dyn std::error::Error>> {
+   let source = format!("{:?}", gethostname::gethostname());
+   let payload
+       = serde_json::json!({
+            "payload": {"subject": subject,
+                        "message": message,
+                        "topic": topic,
+                        "notificationType": notification_type,
+                        "messageIdentifier": message_identifier,
+                        "source": source}
+                       });
+    log::info!("{}", payload.to_string());
+/*
+    map.insert("subject", subject);
+    map.insert("message", message);
+    map.insert("topic", topic);
+    map.insert("notificationType", notification_type.to_lowercase());
+    map.insert("messageIdentifier", message_identifier);
+    map.insert("source", source);
+    headers = {'x-api-key': api_key,
+               'Content-Type': 'application/json',
+               'Accept' : 'application/json'}
+*/
+   let client = reqwest::blocking::Client::new();
+   let response = client.put(uri)
+                 .header("x-api-key", api_key)
+                 .header("Content-Type", "application/json")
+                 .header("Accept", "application/json")
+                 .body(payload.to_string())
+                 .send()?;
+
+   if response.status() == 200 {
+      log::info!("Successfully posted to API");
+      let document_text = response.text()?.clone();
+      return Ok(document_text);
+   }
+   return Err("Failed to post message".into());
+
+}
+
+fn create_email_message(stations_to_create : &Vec<StationTime>,
+                        stations_to_update : &Vec<StationTime>) -> String {
+   let mut result = String::from("");
+   if stations_to_create.is_empty() && stations_to_update.is_empty() {
+      return result;
+   }
+   for station in stations_to_create.iter() {
+      let create_string : String = format!("Added {}\n", station.station);
+      result.push_str(&create_string);
+   }
+   for station in stations_to_update.iter() {
+      let update_string : String = format!("Updated {}\n", station.station);
+      result.push_str(&update_string);
+   }
+   return result;
+}
+
 fn get_page(uri : &str) -> Result<String, Box<dyn std::error::Error>> {
    let response = reqwest::blocking::get(uri)?;
    // If I got a 200 code then return a win
@@ -128,7 +191,9 @@ fn find_stations_to_update(database_stations : &Vec<StationTime>,
    return result;
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+   // Get the command line arguments
+   //let args: Vec<String> = std::env::args().collect();
    // Lift the read-write database parameters
    let database_read_write_user = std::env::var("SIS_POLLER_DATABASE_READ_WRITE_USER")
        .expect("Cannot find SIS_POLLER_DATABASE_READ_WRITE_USER environment variable");
@@ -143,12 +208,20 @@ fn main() {
    let database_schema = std::env::var("SIS_POLLER_DATABASE_SCHEMA")
        .unwrap_or("".to_string());
    let database_connection_uri : String
-       = std::format!("postgresql://{}:{}@{}:{}/{}",
-                           database_read_write_user,
-                           database_read_write_password,
-                           database_host,
-                           database_port,
-                           database_name);
+      = std::format!("postgresql://{}:{}@{}:{}/{}",
+                     database_read_write_user,
+                     database_read_write_password,
+                     database_host,
+                     database_port,
+                     database_name);
+   // Lift the API endpoint and key
+   let notification_api_uri = std::env::var("SIS_NOTIFICATION_API_URI")
+      .expect("Cannot find SIS_NOTIFICATION_API_URI");
+   let notification_api_key = std::env::var("SIS_NOTIFICATION_API_KEY")
+      .unwrap_or("".to_string()); //expect("Cannot find SIS_NOTIFICATION_API_KEY");
+
+   let notification_topic : String = "test".to_string(); // Can be production or test
+   let notification_type : String = "update_email".to_string(); // Can be test_email or update_email
 
    // Initializing my logger
    env_logger::init();
@@ -168,7 +241,7 @@ fn main() {
       }
       Err(error) => {
          log::warn!("Error in getting database stations: {error:?}");
-         return;
+         return Err("Failed getting database stations from database".into());
       }
    }
    
@@ -213,4 +286,32 @@ fn main() {
    log::info!("Will create {} stations", stations_to_create.len());
    let stations_to_update = find_stations_to_update(&database_stations, &sis_stations);
    log::info!("Will update {} stations", stations_to_update.len());
+   let message : String = create_email_message(&stations_to_create, &stations_to_update);
+   if !message.is_empty() {
+      let subject : String = "SIS poller notification".to_string();
+      let random_number : u32 = rand::random_range(0..=100000);
+      let message_identifier : String = "sisUpdateMessage_".to_string()
+                                      + &random_number.to_string(); // Could also be sisTestMessage
+      let post_result = post_to_api(&notification_api_uri,
+                                    &notification_api_key,
+                                    &subject,
+                                    &message,
+                                    &notification_topic,
+                                    &notification_type,
+                                    &message_identifier);
+      match post_result {
+         Ok(_post_result) => {
+            log::info!("Succesfully put message to API");
+         }
+         Err(error) => {
+            log::warn!("Failed to post message to API: {error:?}");
+            return Err("Failed to post message to API".into());
+         }
+     }
+
+   }
+   else {
+      log::info!("No updates detected");
+   }
+   Ok(())
 }
