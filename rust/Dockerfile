@@ -1,20 +1,33 @@
 # Purpose: Creates the image for running the SIS updater.
-#podman build -t sis_poller:latest -f Dockerfile
-FROM alpine:latest
+#podman build -t sispoller:latest -f Dockerfile
+FROM alpine:latest as sispoller
 
 RUN apk update &&\
-    apk --no-cache git &&\
-    apk --no-cache rust cargo
+    apk add --no-cache pkgconfig &&\
+    apk add --no-cache git &&\
+    apk add --no-cache rust cargo &&\
+    apk add openssl &&\
+    apk add --no-cache openssl-dev
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN mkdir -p /home/appuser &&\
+    addgroup -S appgroup &&\
+    adduser -S appuser -G appgroup
 USER appuser
 WORKDIR /home/appuser
 
-RUN cd /home/appusuer &&\
+RUN cd /home/appuser &&\
     git clone https://github.com/uofuseismo/sisPoller.git &&\
     cd sisPoller/rust &&\
-    cargo build --release --target-dir=/home/appuser/
+    cargo build --release --target-dir=/home/appuser/ &&\
+    cd /home/appuser &&\
+    rm -rf sisPoller &&\
+    rm -r build &&\
+    rm -r deps &&\
+    rm -r examples &&\
+    rm -r incremental &&\
+    rm sisPoller.d
 
 WORKDIR /home/appuser/release
+#RUN RUST_LOG=info ./sisPoller
 #RUN RUST_LOG=info ./sisPoller
 
