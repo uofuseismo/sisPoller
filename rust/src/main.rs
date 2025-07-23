@@ -21,14 +21,19 @@ fn get_stations_from_pg(connection_uri : &str, schema : &str) -> Result<Vec<Stat
 }
 
 fn create_stations_in_pg(connection_uri : &str, 
+                         schema : &str,
                          stations_to_create : &Vec<StationTime>) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
    let mut created_stations : Vec<StationTime> = Vec::new();
    if !stations_to_create.is_empty() {
        let mut client = postgres::Client::connect(connection_uri, postgres::NoTls)?;
+       if !schema.is_empty() {
+          let _ = client.execute("SET search_path TO production", &[])?;
+       }
        for station in stations_to_create.iter() {
+          let time : f64 = station.time as f64;
           let result = client.execute(
                        "INSERT INTO xml_update (xml_file, last_modified) VALUES($1, TO_TIMESTAMP($2))", 
-                       &[&station.station, &station.time],
+                       &[&station.station, &time],
                        );
           match result {
              Ok(result) => {
@@ -47,14 +52,19 @@ fn create_stations_in_pg(connection_uri : &str,
 }
 
 fn update_stations_in_pg(connection_uri : &str, 
+                         schema : &str,
                          stations_to_update : &Vec<StationTime>) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
    let mut updated_stations : Vec<StationTime> = Vec::new();
    if !stations_to_update.is_empty() {
        let mut client = postgres::Client::connect(connection_uri, postgres::NoTls)?;
+       if !schema.is_empty() {
+          let _ = client.execute("SET search_path TO production", &[])?;
+       }
        for station in stations_to_update.iter() {
+          let time : f64 = station.time as f64;
           let result = client.execute(
-                       "UPDATE xml_update SET last_modified = TO_TIMESTAMP($1) WHERE xml_file = $2)", 
-                       &[&station.time, &station.station],
+                       "UPDATE xml_update SET last_modified = TO_TIMESTAMP($1) WHERE xml_file = $2", 
+                       &[&time, &station.station],
                        );
           match result {
              Ok(result) => {
@@ -295,9 +305,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    log::info!("Got {} stations from database",database_stations.len());
 
    let base_uri = String::from("https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/");
-   let networks = vec!["UU"];//["UU", "WY", "IW", "UW"];
+   //let networks = vec!["UU"];
+   let networks = vec!["UU", "WY", "IW", "UW"];
    let iw_keeper_stations = vec!["FLWY", "IMW", "LOHW", "MOOW", "REDW", "RWWY", "SNOW", "TPAW"];
-   let us_keeper_stations = vec!["AHID", "BOZ", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "LWKY", "MVCO", "TPNV", "WUAZ"];
+   let us_keeper_stations = vec!["AHID", "BOZ", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "LKWY", "MVCO", "TPNV", "WUAZ"];
    let mut sis_stations : Vec<StationTime> = Vec::new();
    for network in networks.iter() {
        let mut uri : String = base_uri.clone();
@@ -335,12 +346,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    log::info!("Will attempt to create {} stations", 
               candidate_stations_to_create.len());
    let stations_to_create = create_stations_in_pg(database_connection_uri.as_str(),
+                                                  database_schema.as_str(),
                                                   &candidate_stations_to_create)?;
 
    let candidate_stations_to_update = find_stations_to_update(&database_stations, &sis_stations);
    log::info!("Will attempt to update {} stations", 
               candidate_stations_to_update.len());
    let stations_to_update = update_stations_in_pg(database_connection_uri.as_str(),
+                                                  database_schema.as_str(),
                                                   &candidate_stations_to_update)?;
 
 
