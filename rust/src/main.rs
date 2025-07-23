@@ -11,14 +11,67 @@ fn get_stations_from_pg(connection_uri : &str, schema : &str) -> Result<Vec<Stat
       let _ = client.execute("SET search_path TO production", &[])?;
    }
    for row in client.query("SELECT xml_file, EXTRACT(epoch FROM last_modified)::bigint AS last_modified FROM xml_update", &[])? {
-       let station : &str = row.get(0);
-       let time : i64 = row.get(1);
-       let pair = StationTime {station: station.to_string(), time: time};  
-       log::debug!("Database station {} {}", station, time);
-       stations.push(pair);
+      let station : &str = row.get(0);
+      let time : i64 = row.get(1);
+      let pair = StationTime {station: station.to_string(), time: time};  
+      log::debug!("Database station {} {}", station, time);
+      stations.push(pair);
    }
    return Ok(stations);
 }
+
+fn create_stations_in_pg(connection_uri : &str, 
+                         stations_to_create : &Vec<StationTime>) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
+   let mut created_stations : Vec<StationTime> = Vec::new();
+   if !stations_to_create.is_empty() {
+       let mut client = postgres::Client::connect(connection_uri, postgres::NoTls)?;
+       for station in stations_to_create.iter() {
+          let result = client.execute(
+                       "INSERT INTO xml_update (xml_file, last_modified) VALUES($1, TO_TIMESTAMP($2))", 
+                       &[&station.station, &station.time],
+                       );
+          match result {
+             Ok(result) => {
+                log::debug!("Successful insert -> created {} row", &result);
+                created_stations.push(station.clone());
+             }   
+             Err(result) => {
+                log::warn!("Insert failed -> {}", &result);
+             }
+         }
+      }
+      log::info!("Created {} out of {} stations in database", 
+                 created_stations.len(), stations_to_create.len());
+   }
+   return Ok(created_stations);
+}
+
+fn update_stations_in_pg(connection_uri : &str, 
+                         stations_to_update : &Vec<StationTime>) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
+   let mut updated_stations : Vec<StationTime> = Vec::new();
+   if !stations_to_update.is_empty() {
+       let mut client = postgres::Client::connect(connection_uri, postgres::NoTls)?;
+       for station in stations_to_update.iter() {
+          let result = client.execute(
+                       "UPDATE xml_update SET last_modified = TO_TIMESTAMP($1) WHERE xml_file = $2)", 
+                       &[&station.time, &station.station],
+                       );
+          match result {
+             Ok(result) => {
+                log::debug!("Successful update -> updated {} row", &result);
+                updated_stations.push(station.clone());
+             }
+             Err(result) => {
+                log::warn!("update failed -> {}", &result);
+             }
+         }
+      }   
+      log::info!("Updated {} out of {} stations in database", 
+                 updated_stations.len(), stations_to_update.len());
+   }   
+   return Ok(updated_stations);
+}
+
 
 fn post_to_api(uri : &str,
                api_key : &str,
@@ -275,11 +328,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
           }
        }
    } 
+
    log::debug!("Returned {} stations from SIS", sis_stations.len());
-   let stations_to_create = find_stations_to_create(&database_stations, &sis_stations);
-   log::info!("Will create {} stations", stations_to_create.len());
-   let stations_to_update = find_stations_to_update(&database_stations, &sis_stations);
-   log::info!("Will update {} stations", stations_to_update.len());
+
+   let candidate_stations_to_create = find_stations_to_create(&database_stations, &sis_stations);
+   log::info!("Will attempt to create {} stations", 
+              candidate_stations_to_create.len());
+   let stations_to_create = create_stations_in_pg(database_connection_uri.as_str(),
+                                                  &candidate_stations_to_create)?;
+
+   let candidate_stations_to_update = find_stations_to_update(&database_stations, &sis_stations);
+   log::info!("Will attempt to update {} stations", 
+              candidate_stations_to_update.len());
+   let stations_to_update = update_stations_in_pg(database_connection_uri.as_str(),
+                                                  &candidate_stations_to_update)?;
+
+
    let message : String = create_email_message(&stations_to_create, &stations_to_update);
    if !message.is_empty() {
       let subject : String = "SIS poller notification".to_string();
@@ -302,7 +366,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err("Failed to post message to API".into());
          }
      }
-
    }
    else {
       log::info!("No updates detected");
