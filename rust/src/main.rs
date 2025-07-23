@@ -306,7 +306,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
    let base_uri = String::from("https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/");
    //let networks = vec!["UU"];
-   let networks = vec!["UU", "WY", "IW", "UW"];
+   let networks = vec!["UU", "WY", "IW", "US"];
    let iw_keeper_stations = vec!["FLWY", "IMW", "LOHW", "MOOW", "REDW", "RWWY", "SNOW", "TPAW"];
    let us_keeper_stations = vec!["AHID", "BOZ", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "LKWY", "MVCO", "TPNV", "WUAZ"];
    let mut sis_stations : Vec<StationTime> = Vec::new();
