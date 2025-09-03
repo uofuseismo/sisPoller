@@ -4,6 +4,20 @@ struct StationTime {
    time : i64,
 }
 
+#[derive(Clone)]
+struct Parameters {
+   database_host : String,
+   database_port : i64,
+   database_name : String,
+   database_schema : String,
+   database_user : String,
+   database_password : String,
+   api_uri : String,
+   api_key : String,
+   api_notification_topic : String,
+   api_notification_type : String,
+}
+
 fn get_stations_from_pg(connection_uri : &str, schema : &str) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
    let mut stations : Vec<StationTime> = Vec::new();
    let mut client = postgres::Client::connect(connection_uri, postgres::NoTls)?;
@@ -245,38 +259,120 @@ fn find_stations_to_update(database_stations : &Vec<StationTime>,
    return result;
 }
 
+fn load_configuration(configuration_file : &String) -> Result<Parameters, Box<dyn std::error::Error>> {
+   use configparser::ini::Ini;
+   let mut config = Ini::new();
+   let _map = config.load(configuration_file)?;
+
+   let database_section = String::from("SISDatabase");
+   let database_host = config.get(database_section.as_str(), "host").unwrap();
+   let database_port = config.getint(database_section.as_str(), "port").unwrap().unwrap();
+   let database_name = config.get(database_section.as_str(), "name").unwrap();
+   //let database_schema = config.get(database_section.as_str(), "schema").unwrap();
+   let database_schema : String;
+   let database_schema_result = config.get(database_section.as_str(), "schema");
+   match database_schema_result {
+      Some(value) => database_schema = value,
+      None => database_schema = String::from(""),
+   } 
+   let database_user = config.get(database_section.as_str(), "user").unwrap();
+   let database_password = config.get(database_section.as_str(), "password").unwrap();
+
+   let api_section = String::from("AWSDistributionAPI");
+   let api_uri = config.get(api_section.as_str(), "uri").unwrap();
+   let api_key = config.get(api_section.as_str(), "key").unwrap();
+   let api_notification_topic : String;
+   let api_notification_topic_result = config.get(api_section.as_str(), "notificationTopic");
+   match api_notification_topic_result {
+      Some(value) => api_notification_topic = value,
+      None => api_notification_topic = String::from("production"),
+   }                                  
+
+   let api_notification_type : String;
+   let api_notification_type_result = config.get(api_section.as_str(), "notificationType");
+   match api_notification_type_result {
+      Some(value) => api_notification_type = value,
+      None => api_notification_type = String::from("update_email"),
+   }
+
+   let result = Parameters{
+                             database_host: database_host.to_string(),
+                             database_port: database_port,
+                             database_name: database_name.to_string(),
+                             database_schema: database_schema.to_string(),
+                             database_user: database_user.to_string(),
+                             database_password: database_password.to_string(),
+                             api_uri: api_uri.to_string(),
+                             api_key: api_key.to_string(),
+                             api_notification_topic: api_notification_topic.to_string(),
+                             api_notification_type: api_notification_type.to_string(),
+                          };
+   return Ok(result);
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+   let ini_file : String = String::from("sisPoller.ini");
+   let parameters_result = load_configuration(&ini_file);
+   let parameters : Parameters;
+   match parameters_result {
+      Ok(result) => {
+         parameters = result.clone();
+      }   
+      Err(error) => {
+         log::warn!("Error loading parameters from initialization file: {error:?}");
+         return Err("Failed to load parameters from initialization file".into());
+      }
+   }
+
+   // Load the command line arguments
+   //let configuration = Ini::load_from_file("sisPoller.ini").unwrap();
+   //let database_section = configuration.section("SISDatabase");
+   //let database_host = database_section.get("host").unwrap();
+   //let database_port = database_section.get("port").unwrap();
+   //let database_name = database_section.get("name").unwrap();
+   //let database_schema = database_section.get("schema").unwrap();
+   //let database_user = database_section.get("user").unwrap();
+   //let database_password = database_section.get("password").unwrap();
+   let database_connection_uri : String
+      = std::format!("postgresql://{}:{}@{}:{}/{}",
+                     parameters.database_user,
+                     parameters.database_password,
+                     parameters.database_host,
+                     parameters.database_port,
+                     parameters.database_name);
+
+
    // Get the command line arguments
    //let args: Vec<String> = std::env::args().collect();
    // Lift the read-write database parameters
-   let database_read_write_user = std::env::var("SIS_POLLER_DATABASE_READ_WRITE_USER")
-       .expect("Cannot find SIS_POLLER_DATABASE_READ_WRITE_USER environment variable");
-   let database_read_write_password = std::env::var("SIS_POLLER_DATABASE_READ_WRITE_PASSWORD")
-       .expect("Cannot find SIS_POLLER_DATABASE_READ_WRITE_PASSWORD environent variable");
-   let database_name = std::env::var("SIS_POLLER_DATABASE_NAME")
-       .expect("Cannot find SIS_POLLER_DATABASE_NAME environment variable");
-   let database_host = std::env::var("SIS_POLLER_DATABASE_HOST")
-       .unwrap_or("localhost".to_string()); //expect("Cannot find SIS_POLLER_DATABASE_HOST environment variable");
-   let database_port = std::env::var("SIS_POLLER_DATABASE_PORT")
-       .unwrap_or("5432".to_string());//expect("Cannot find SIS_POLLER_DATABASE_PORT environment variable");
-   let database_schema = std::env::var("SIS_POLLER_DATABASE_SCHEMA")
-       .unwrap_or("".to_string());
-   let database_connection_uri : String
-      = std::format!("postgresql://{}:{}@{}:{}/{}",
-                     database_read_write_user,
-                     database_read_write_password,
-                     database_host,
-                     database_port,
-                     database_name);
+   //let database_read_write_user = std::env::var("SIS_POLLER_DATABASE_READ_WRITE_USER")
+   //    .expect("Cannot find SIS_POLLER_DATABASE_READ_WRITE_USER environment variable");
+   //let database_read_write_password = std::env::var("SIS_POLLER_DATABASE_READ_WRITE_PASSWORD")
+   //    .expect("Cannot find SIS_POLLER_DATABASE_READ_WRITE_PASSWORD environent variable");
+   //let database_name = std::env::var("SIS_POLLER_DATABASE_NAME")
+   //    .expect("Cannot find SIS_POLLER_DATABASE_NAME environment variable");
+   //let database_host = std::env::var("SIS_POLLER_DATABASE_HOST")
+   //    .unwrap_or("localhost".to_string()); //expect("Cannot find SIS_POLLER_DATABASE_HOST environment variable");
+   //let database_port = std::env::var("SIS_POLLER_DATABASE_PORT")
+   //    .unwrap_or("5432".to_string());//expect("Cannot find SIS_POLLER_DATABASE_PORT environment variable");
+   //let database_schema = std::env::var("SIS_POLLER_DATABASE_SCHEMA")
+   //    .unwrap_or("".to_string());
+   //let database_connection_uri : String
+   //   = std::format!("postgresql://{}:{}@{}:{}/{}",
+   //                  database_read_write_user,
+   //                  database_read_write_password,
+   //                  database_host,
+   //                  database_port,
+   //                  database_name);
    // Lift the API endpoint and key
-   let notification_api_uri = std::env::var("SIS_NOTIFICATION_API_URI")
-      .expect("Cannot find SIS_NOTIFICATION_API_URI");
-   let notification_api_key = std::env::var("SIS_NOTIFICATION_API_KEY")
-      .unwrap_or("".to_string()); //expect("Cannot find SIS_NOTIFICATION_API_KEY");
-   let notification_topic = std::env::var("SIS_NOTIFICATION_API_TOPIC")
-      .unwrap_or("production".to_string()); // Can be production or test
-   let notification_type = std::env::var("SIS_NOTIFICATION_API_TYPE")
-      .unwrap_or("update_email".to_string()); // Can be test_email or update_email
+   //let notification_api_uri = std::env::var("SIS_NOTIFICATION_API_URI")
+   //   .expect("Cannot find SIS_NOTIFICATION_API_URI");
+   //let notification_api_key = std::env::var("SIS_NOTIFICATION_API_KEY")
+   //   .unwrap_or("".to_string()); //expect("Cannot find SIS_NOTIFICATION_API_KEY");
+   //let notification_topic = std::env::var("SIS_NOTIFICATION_API_TOPIC")
+   //   .unwrap_or("production".to_string()); // Can be production or test
+   //let notification_type = std::env::var("SIS_NOTIFICATION_API_TYPE")
+   //   .unwrap_or("update_email".to_string()); // Can be test_email or update_email
    //let notification_topic : String = "test".to_string(); // Can be production or test
    //let notification_type : String = "update_email".to_string(); // Can be test_email or update_email
 
@@ -291,7 +387,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    let database_stations : Vec<StationTime>;
    let database_stations_result
       = get_stations_from_pg(database_connection_uri.as_str(),
-                             database_schema.as_str());
+                             parameters.database_schema.as_str());
    match database_stations_result {
       Ok(result) => {
          database_stations = result.clone();
@@ -346,14 +442,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    log::info!("Will attempt to create {} stations", 
               candidate_stations_to_create.len());
    let stations_to_create = create_stations_in_pg(database_connection_uri.as_str(),
-                                                  database_schema.as_str(),
+                                                  parameters.database_schema.as_str(),
                                                   &candidate_stations_to_create)?;
 
    let candidate_stations_to_update = find_stations_to_update(&database_stations, &sis_stations);
    log::info!("Will attempt to update {} stations", 
               candidate_stations_to_update.len());
    let stations_to_update = update_stations_in_pg(database_connection_uri.as_str(),
-                                                  database_schema.as_str(),
+                                                  parameters.database_schema.as_str(),
                                                   &candidate_stations_to_update)?;
 
 
@@ -363,12 +459,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
       let random_number : u32 = rand::random_range(0..=100000);
       let message_identifier : String = "sisUpdateMessage_".to_string()
                                       + &random_number.to_string(); // Could also be sisTestMessage
-      let post_result = post_to_api(&notification_api_uri,
-                                    &notification_api_key,
+      let post_result = post_to_api(&parameters.api_uri,
+                                    &parameters.api_key,
                                     &subject,
                                     &message,
-                                    &notification_topic,
-                                    &notification_type,
+                                    &parameters.api_notification_topic,
+                                    &parameters.api_notification_type,
                                     &message_identifier);
       match post_result {
          Ok(post_result) => {
