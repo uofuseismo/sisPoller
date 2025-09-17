@@ -34,10 +34,10 @@ jobs:
       - run:
            name: "Save artifacts"
            command: |
-             mkdir -p /tmp/artifacts
-             cp rust/target/release/sis_poller /tmp/artifacts
-             cp rust/version.txt /tmp/artifactcs
-             cp rust/Dockerfile.circleci /tmp/artifacts/Dockerfile.alpine
+             mkdir -p /tmp/workspace
+             cp rust/target/release/sis_poller /tmp/workspace/
+             cp rust/version.txt /tmp/workspace/
+             cp rust/Dockerfile.circleci /tmp/workspace/Dockerfile.alpine
       - persist_to_workspace:
           root: /tmp/workspace
           paths:
