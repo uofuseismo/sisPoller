@@ -17,9 +17,11 @@ jobs:
       - run:
           name: "Build container"
           command: |
-            ls /tmp/workspace
-            version=`cat /tmp/workspace/version.txt`
-            docker build -t sispoller:latest -t sispoller:${version} -f /tmp/workspace/Dockerfile.alpine . 
+            cd /tmp/workspace
+            ls
+            version=`cat version.txt`
+            echo "Making container version ${version}"
+            docker build -t sispoller:latest -t sispoller:${version} -f Dockerfile.alpine . 
   compile-job:
     # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.    # See: https://circleci.com/docs/executor-intro/ & https://circleci.com/docs/configuration-reference/#executor-job
     docker:
