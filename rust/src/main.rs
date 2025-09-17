@@ -387,58 +387,72 @@ fn find_stations_to_update(database_stations : &Vec<StationTime>,
 }
 
 fn load_configuration(configuration_file : &String,
-                      _use_sqlite3 : bool) -> Result<Parameters, Box<dyn std::error::Error>> {
+                      use_sqlite3 : bool,
+                      initialize : bool) -> Result<Parameters, Box<dyn std::error::Error>> {
    use configparser::ini::Ini;
    let mut config = Ini::new();
    let _map = config.load(configuration_file)?;
 
-   let sqlite3_database_section = String::from("SISSqlite3Database");
-   let sqlite3_file : String;
-   let sqlite3_file_result = config.get(sqlite3_database_section.as_str(), "file_name");
-   match sqlite3_file_result {
-      Some(value) => sqlite3_file = value,
-      None => sqlite3_file = String::from("./sisPoller.sqlite3"),
+   let mut sqlite3_file : String = String::from("./sisPoller.sqlite3");
+   let mut pg_database_host : String = String::from("localhost");
+   let mut pg_database_port : i64 = 5432;
+   let mut pg_database_name : String = String::from("");
+   let mut pg_database_schema : String = String::from("");
+   let mut pg_database_user : String = String::from("");
+   let mut pg_database_password : String = String::from(""); 
+   if use_sqlite3 {
+      let sqlite3_database_section = String::from("SISSqlite3Database");
+      let sqlite3_file_result = config.get(sqlite3_database_section.as_str(), "file_name");
+      match sqlite3_file_result {
+         Some(value) => sqlite3_file = value,
+         None => sqlite3_file = String::from("./sisPoller.sqlite3"),
+      }
+   }
+   else {
+      let pg_database_section = String::from("SISPostgresDatabase");
+      pg_database_host = config.get(pg_database_section.as_str(), "host").unwrap();
+      pg_database_port = config.getint(pg_database_section.as_str(), "port").unwrap().unwrap();
+      pg_database_name = config.get(pg_database_section.as_str(), "name").unwrap();
+      //let database_schema = config.get(pg_database_section.as_str(), "schema").unwrap();
+      //let database_schema : String;
+      let database_schema_result = config.get(pg_database_section.as_str(), "schema");
+      match database_schema_result {
+         Some(value) => pg_database_schema = value,
+         None => pg_database_schema = String::from(""),
+      } 
+      pg_database_user = config.get(pg_database_section.as_str(), "user").unwrap();
+      pg_database_password = config.get(pg_database_section.as_str(), "password").unwrap();
    }
 
-   let pg_database_section = String::from("SISPostgresDatabase");
-   let database_host = config.get(pg_database_section.as_str(), "host").unwrap();
-   let database_port = config.getint(pg_database_section.as_str(), "port").unwrap().unwrap();
-   let database_name = config.get(pg_database_section.as_str(), "name").unwrap();
-   //let database_schema = config.get(pg_database_section.as_str(), "schema").unwrap();
-   let database_schema : String;
-   let database_schema_result = config.get(pg_database_section.as_str(), "schema");
-   match database_schema_result {
-      Some(value) => database_schema = value,
-      None => database_schema = String::from(""),
-   } 
-   let database_user = config.get(pg_database_section.as_str(), "user").unwrap();
-   let database_password = config.get(pg_database_section.as_str(), "password").unwrap();
+   let mut api_uri : String = String::from("");
+   let mut api_key : String = String::from("");
+   let mut api_notification_topic : String = String::from("production");
+   let mut api_notification_type : String = String::from("update_email");
+   if !initialize {
+      let api_section = String::from("AWSDistributionAPI");
+      api_uri = config.get(api_section.as_str(), "uri").unwrap();
+      api_key = config.get(api_section.as_str(), "key").unwrap();
+      let api_notification_topic_result = config.get(api_section.as_str(), "notificationTopic");
+      match api_notification_topic_result {
+         Some(value) => api_notification_topic = value,
+         None => api_notification_topic = String::from("production"),
+      }
 
-   let api_section = String::from("AWSDistributionAPI");
-   let api_uri = config.get(api_section.as_str(), "uri").unwrap();
-   let api_key = config.get(api_section.as_str(), "key").unwrap();
-   let api_notification_topic : String;
-   let api_notification_topic_result = config.get(api_section.as_str(), "notificationTopic");
-   match api_notification_topic_result {
-      Some(value) => api_notification_topic = value,
-      None => api_notification_topic = String::from("production"),
-   }                                  
-
-   let api_notification_type : String;
-   let api_notification_type_result = config.get(api_section.as_str(), "notificationType");
-   match api_notification_type_result {
-      Some(value) => api_notification_type = value,
-      None => api_notification_type = String::from("update_email"),
+      let api_notification_type_result = config.get(api_section.as_str(), "notificationType");
+      match api_notification_type_result {
+         Some(value) => api_notification_type = value,
+         None => api_notification_type = String::from("update_email"),
+      }
    }
 
    let result = Parameters{
                              sqlite3_file: sqlite3_file.to_string(),
-                             database_host: database_host.to_string(),
-                             database_port: database_port,
-                             database_name: database_name.to_string(),
-                             database_schema: database_schema.to_string(),
-                             database_user: database_user.to_string(),
-                             database_password: database_password.to_string(),
+                             database_host: pg_database_host.to_string(),
+                             database_port: pg_database_port,
+                             database_name: pg_database_name.to_string(),
+                             database_schema: pg_database_schema.to_string(),
+                             database_user: pg_database_user.to_string(),
+                             database_password: pg_database_password.to_string(),
                              api_uri: api_uri.to_string(),
                              api_key: api_key.to_string(),
                              api_notification_topic: api_notification_topic.to_string(),
@@ -465,7 +479,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    //let args: Vec<String> = std::env::args().collect();
    //let ini_file : String = String::from("sisPoller.ini");
    let parameters_result = load_configuration(&command_line_arguments.ini_file,
-                                              command_line_arguments.use_sqlite3);
+                                              command_line_arguments.use_sqlite3,
+                                              command_line_arguments.initialize);
    let parameters : Parameters;
    match parameters_result {
       Ok(result) => {

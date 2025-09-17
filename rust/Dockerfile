@@ -1,17 +1,23 @@
 # Purpose: Creates the image for running the SIS updater.
-#podman build -t sispoller:latest -f Dockerfile
+# Usage: buildah build -t sispoller:latest -f Dockerfile
 FROM alpine:latest as sispoller
 
 RUN apk update &&\
     apk add --no-cache pkgconfig &&\
     apk add --no-cache git &&\
-    apk add --no-cache rust cargo &&\
+    apk add --no-cache cargo &&\
     apk add openssl &&\
+    apk add sqlite-libs &&\
     apk add --no-cache openssl-dev
 
-RUN mkdir -p /home/appuser &&\
-    addgroup -S appgroup &&\
-    adduser -S appuser -G appgroup
+# Create a user
+RUN addgroup -S appgroup &&\
+    adduser -S appuser --home /home/appuser --shell /bin/bash --disabled-password --gecos -G appgroup
+
+#RUN mkdir -p /home/appuser &&\
+#    addgroup -S appgroup &&\
+#    adduser -S appuser -G appgroup
+
 USER appuser
 WORKDIR /home/appuser
 
@@ -28,4 +34,5 @@ ENV PATH="$PATH:/home/appuser/bin"
 WORKDIR /home/appuser/
 #RUN RUST_LOG=info ./sisPoller
 #RUN RUST_LOG=info ./sisPoller
+#ENTRYPOINT
 
