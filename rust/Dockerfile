@@ -6,9 +6,13 @@ RUN apk update &&\
     apk add --no-cache pkgconfig &&\
     apk add --no-cache git &&\
     apk add --no-cache cargo &&\
-    apk add openssl &&\
-    apk add sqlite-libs &&\
-    apk add --no-cache openssl-dev
+    apk add --no-cache openssl-dev &&\
+    apk add openssl
+
+#RUN apk add musl-dev &&\
+#    apk add openssl &&\
+#    apk add sqlite-libs &&\
+#    apk add sqlite
 
 # Create a user
 RUN addgroup -S appgroup &&\
@@ -25,8 +29,8 @@ RUN cd /home/appuser &&\
     mkdir -p bin &&\
     git clone https://github.com/uofuseismo/sisPoller.git &&\
     cd sisPoller/rust &&\
-    cargo build --release --target-dir=./production &&\
-    cp production/release/sisPoller /home/appuser/bin &&\
+    RUST_LOG=info cargo build --release &&\
+    cp target/release/sis_poller /home/appuser/bin &&\
     cd /home/appuser/ &&\
     rm -rf sisPoller
     
