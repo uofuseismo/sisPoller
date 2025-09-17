@@ -24,7 +24,7 @@ jobs:
           name: "Cargo build"
           command: |
             cd rust
-            RUST_INFO cargo build --release
+            RUST_LOG=info cargo build --release
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/workflows/ & https://circleci.com/docs/configuration-reference/#workflows
 workflows:
