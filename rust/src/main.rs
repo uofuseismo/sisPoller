@@ -1,11 +1,23 @@
+use clap::Parser;
+
+static DEFAULT_INI_FILE: &str = "./sisPoller.ini"; 
+
+/*
 #[derive(Clone)]
+#[derive(Debug)]
 struct StationTime {
    station : String,
    time : i64,
 }
+*/
+
+mod database;
+mod datatypes;
+use crate::datatypes::station_time::StationTime;
 
 #[derive(Clone)]
 struct Parameters {
+   sqlite3_file : String,
    database_host : String,
    database_port : i64,
    database_name : String,
@@ -18,6 +30,21 @@ struct Parameters {
    api_notification_type : String,
 }
 
+#[derive(Parser)]
+#[command(name = "sisPoller")]
+#[command(version)]
+#[command(about = "Polls the SIS XML page to detect station updates")]
+#[command(long_about = None)]
+struct CommandLineArguments {
+   #[arg(short, long, default_value = DEFAULT_INI_FILE)]
+   ini_file: String,
+   #[arg(long, default_value_t = true)]
+   use_sqlite3: bool,
+   #[arg(long, default_value_t = false)]
+   initialize: bool, 
+}
+
+/*
 fn get_stations_from_pg(connection_uri : &str, schema : &str) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
    let mut stations : Vec<StationTime> = Vec::new();
    let mut client = postgres::Client::connect(connection_uri, postgres::NoTls)?;
@@ -34,6 +61,106 @@ fn get_stations_from_pg(connection_uri : &str, schema : &str) -> Result<Vec<Stat
    return Ok(stations);
 }
 
+fn get_stations_from_sqlite3(sqlite3_file : &str) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
+   // Make sure the sqlite3 file exists
+   create_xml_table_sqlite3(sqlite3_file);
+   //database::sqlite3::create_xml_table(sqlite3_file);
+   assert!(std::fs::exists(sqlite3_file).unwrap());
+   let mut stations : Vec<StationTime> = Vec::new();
+   let connection = rusqlite::Connection::open(sqlite3_file).unwrap(); 
+   let mut statement
+       = connection.prepare("SELECT xml_file, unixepoch(last_modified) AS last_modified FROM xml_update")?;
+   let station_iter = statement.query_map([], |row| {
+      Ok(StationTime {
+          station: row.get(0)?, 
+          time: row.get(1)?,
+        })
+   })?; 
+
+   for s in station_iter {
+      let station = s?;
+      log::debug!("Found station {:?} in sqlite3", station);
+      stations.push(station.clone());
+   }
+   return Ok(stations);
+}
+*/
+
+/*
+fn create_xml_table_sqlite3(sqlite3_file : &str ) {
+   let sqlite_database_exists = std::fs::exists(sqlite3_file).unwrap();
+   if !sqlite_database_exists {
+      log::info!("Creating sqlite3 database {}", sqlite3_file);
+      let connection = rusqlite::Connection::open(sqlite3_file).unwrap();
+      connection.execute("CREATE TABLE xml_update (xml_file TEXT, last_modified TEXT)", (), ).unwrap();
+   }
+   else {
+      log::debug!("sqlite3 database {} already exists", sqlite3_file);
+   }
+}
+
+fn create_stations_in_sqlite3(sqlite3_file : &str,
+                              stations_to_create : &Vec<StationTime>) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
+   create_xml_table_sqlite3(sqlite3_file);
+   let mut created_stations : Vec<StationTime> = Vec::new();
+   if !stations_to_create.is_empty() {
+      let connection = rusqlite::Connection::open(sqlite3_file).unwrap();
+      for station in stations_to_create.iter() {
+         let time : i64 = station.time as i64;
+         let result = connection.execute(
+             "INSERT INTO xml_update (xml_file, last_modified) VALUES(?1, DATETIME(?2, 'unixepoch'))",
+             (&station.station, &time), );
+         match result {
+            Ok(result) => {
+               log::debug!("Successful insert -> created {} row", &result);
+               created_stations.push(station.clone());
+            }
+            Err(result) => {
+               log::warn!("Insert failed -> {}", &result);
+            }
+         }
+      }
+      log::info!("Created {} out of {} stations in sqlite3 database", 
+                 created_stations.len(), stations_to_create.len());
+   }
+   else {
+      log::debug!("No stations to add to sqlite3");
+   }
+   return Ok(created_stations);
+}
+
+fn update_stations_in_sqlite3(sqlite3_file : &str,
+                              stations_to_update : &Vec<StationTime>) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
+   //assert!(std::fs::exists(sqlite3_file).unwrap()); // Has to exist
+   let mut updated_stations : Vec<StationTime> = Vec::new();
+   if !stations_to_update.is_empty() {
+      let connection = rusqlite::Connection::open(sqlite3_file).unwrap();
+      for station in stations_to_update.iter() {
+         let time : i64 = station.time as i64;
+         let result = connection.execute(
+             "UPDATE xml_update SET last_modified TO DATETIME(?1, 'unixepoch') WHERE xml_file = ?2",
+             (&time, &station.station), );
+         match result {
+            Ok(result) => {
+               log::debug!("Successful updated -> station {} row", &result);
+               updated_stations.push(station.clone());
+            }
+            Err(result) => {
+               log::warn!("Insert failed -> {}", &result);
+            }
+         }
+      }
+      log::info!("Updated {} out of {} stations in sqlite3 database",
+                 updated_stations.len(), stations_to_update.len());
+   }
+   else {
+      log::debug!("No stations to add to sqlite3");
+   }
+   return Ok(updated_stations);
+}
+*/
+
+/*
 fn create_stations_in_pg(connection_uri : &str, 
                          schema : &str,
                          stations_to_create : &Vec<StationTime>) -> Result<Vec<StationTime>, Box<dyn std::error::Error>> {
@@ -95,7 +222,7 @@ fn update_stations_in_pg(connection_uri : &str,
    }   
    return Ok(updated_stations);
 }
-
+*/
 
 fn post_to_api(uri : &str,
                api_key : &str,
@@ -259,24 +386,33 @@ fn find_stations_to_update(database_stations : &Vec<StationTime>,
    return result;
 }
 
-fn load_configuration(configuration_file : &String) -> Result<Parameters, Box<dyn std::error::Error>> {
+fn load_configuration(configuration_file : &String,
+                      _use_sqlite3 : bool) -> Result<Parameters, Box<dyn std::error::Error>> {
    use configparser::ini::Ini;
    let mut config = Ini::new();
    let _map = config.load(configuration_file)?;
 
-   let database_section = String::from("SISDatabase");
-   let database_host = config.get(database_section.as_str(), "host").unwrap();
-   let database_port = config.getint(database_section.as_str(), "port").unwrap().unwrap();
-   let database_name = config.get(database_section.as_str(), "name").unwrap();
-   //let database_schema = config.get(database_section.as_str(), "schema").unwrap();
+   let sqlite3_database_section = String::from("SISSqlite3Database");
+   let sqlite3_file : String;
+   let sqlite3_file_result = config.get(sqlite3_database_section.as_str(), "file_name");
+   match sqlite3_file_result {
+      Some(value) => sqlite3_file = value,
+      None => sqlite3_file = String::from("./sisPoller.sqlite3"),
+   }
+
+   let pg_database_section = String::from("SISPostgresDatabase");
+   let database_host = config.get(pg_database_section.as_str(), "host").unwrap();
+   let database_port = config.getint(pg_database_section.as_str(), "port").unwrap().unwrap();
+   let database_name = config.get(pg_database_section.as_str(), "name").unwrap();
+   //let database_schema = config.get(pg_database_section.as_str(), "schema").unwrap();
    let database_schema : String;
-   let database_schema_result = config.get(database_section.as_str(), "schema");
+   let database_schema_result = config.get(pg_database_section.as_str(), "schema");
    match database_schema_result {
       Some(value) => database_schema = value,
       None => database_schema = String::from(""),
    } 
-   let database_user = config.get(database_section.as_str(), "user").unwrap();
-   let database_password = config.get(database_section.as_str(), "password").unwrap();
+   let database_user = config.get(pg_database_section.as_str(), "user").unwrap();
+   let database_password = config.get(pg_database_section.as_str(), "password").unwrap();
 
    let api_section = String::from("AWSDistributionAPI");
    let api_uri = config.get(api_section.as_str(), "uri").unwrap();
@@ -296,6 +432,7 @@ fn load_configuration(configuration_file : &String) -> Result<Parameters, Box<dy
    }
 
    let result = Parameters{
+                             sqlite3_file: sqlite3_file.to_string(),
                              database_host: database_host.to_string(),
                              database_port: database_port,
                              database_name: database_name.to_string(),
@@ -310,9 +447,25 @@ fn load_configuration(configuration_file : &String) -> Result<Parameters, Box<dy
    return Ok(result);
 }
 
+#[cfg(test)]
+mod tests {
+   // Import names from outer (for mod tests) scope)
+   use super::*;
+   //let ts = parse_string("2023-05-30 09:29");
+   assert_eq!(parse_string("2023-05-30 09:29"), 1685438940);
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-   let ini_file : String = String::from("sisPoller.ini");
-   let parameters_result = load_configuration(&ini_file);
+   // Get command line arguments
+   let command_line_arguments = CommandLineArguments::parse();
+
+   // Initializing my logger
+   env_logger::init();
+
+   //let args: Vec<String> = std::env::args().collect();
+   //let ini_file : String = String::from("sisPoller.ini");
+   let parameters_result = load_configuration(&command_line_arguments.ini_file,
+                                              command_line_arguments.use_sqlite3);
    let parameters : Parameters;
    match parameters_result {
       Ok(result) => {
@@ -325,14 +478,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    }
 
    // Load the command line arguments
-   //let configuration = Ini::load_from_file("sisPoller.ini").unwrap();
-   //let database_section = configuration.section("SISDatabase");
-   //let database_host = database_section.get("host").unwrap();
-   //let database_port = database_section.get("port").unwrap();
-   //let database_name = database_section.get("name").unwrap();
-   //let database_schema = database_section.get("schema").unwrap();
-   //let database_user = database_section.get("user").unwrap();
-   //let database_password = database_section.get("password").unwrap();
    let database_connection_uri : String
       = std::format!("postgresql://{}:{}@{}:{}/{}",
                      parameters.database_user,
@@ -376,29 +521,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    //let notification_topic : String = "test".to_string(); // Can be production or test
    //let notification_type : String = "update_email".to_string(); // Can be test_email or update_email
 
-   // Initializing my logger
-   env_logger::init();
-
    // Make sure I understand UTC time
    let ts = parse_string("2023-05-30 09:29");
    assert!(ts == 1685438940);
 
-   log::info!("Fetching stations from database");
    let database_stations : Vec<StationTime>;
-   let database_stations_result
-      = get_stations_from_pg(database_connection_uri.as_str(),
-                             parameters.database_schema.as_str());
-   match database_stations_result {
-      Ok(result) => {
-         database_stations = result.clone();
-      }
-      Err(error) => {
-         log::warn!("Error in getting database stations: {error:?}");
-         return Err("Failed getting database stations from database".into());
+   if command_line_arguments.use_sqlite3 {
+      let database_stations_result
+         = database::sqlite3::get_stations(parameters.sqlite3_file.as_str());
+      match database_stations_result {
+         Ok(result) => {
+            database_stations = result.clone();
+         }
+         Err(error) => {
+            log::warn!("Error in getting database stations from sqlite3: {error:?}");
+            return Err("Failed getting database stations from database sqlite3".into());
+         }
+      }   
+   }
+   else {
+      log::info!("Fetching stations from postgres database");
+      let database_stations_result
+         = database::postgres::get_stations(database_connection_uri.as_str(),
+                                            parameters.database_schema.as_str());
+      match database_stations_result {
+         Ok(result) => {
+            database_stations = result.clone();
+         }
+         Err(error) => {
+            log::warn!("Error in getting database stations from postgres: {error:?}");
+            return Err("Failed getting database stations from postgres database".into());
+         }
       }
    }
-   
-   log::info!("Got {} stations from database",database_stations.len());
+
+   log::info!("Got {} stations from database", database_stations.len());
+
 
    let base_uri = String::from("https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/");
    //let networks = vec!["UU"];
@@ -441,43 +599,84 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    let candidate_stations_to_create = find_stations_to_create(&database_stations, &sis_stations);
    log::info!("Will attempt to create {} stations", 
               candidate_stations_to_create.len());
-   let stations_to_create = create_stations_in_pg(database_connection_uri.as_str(),
-                                                  parameters.database_schema.as_str(),
-                                                  &candidate_stations_to_create)?;
+   let stations_to_create : Vec<StationTime>;
+   if command_line_arguments.use_sqlite3 {
+      let stations_to_create_result
+          = database::sqlite3::create_stations(parameters.sqlite3_file.as_str(), 
+                                               &candidate_stations_to_create);
+      match stations_to_create_result {
+         Ok(result) => {
+            stations_to_create = result.clone();
+         }
+         Err(error) => {
+            log::warn!("Error adding stations to sqlite3: {error:?}");
+            return Err("Failed to add stations to sqlite3 database".into());
+         }   
+      }
+   }
+   else {
+      stations_to_create
+          = database::postgres::create_stations(database_connection_uri.as_str(),
+                                                parameters.database_schema.as_str(),
+                                                &candidate_stations_to_create)?;
+   }
 
    let candidate_stations_to_update = find_stations_to_update(&database_stations, &sis_stations);
    log::info!("Will attempt to update {} stations", 
               candidate_stations_to_update.len());
-   let stations_to_update = update_stations_in_pg(database_connection_uri.as_str(),
-                                                  parameters.database_schema.as_str(),
-                                                  &candidate_stations_to_update)?;
 
-
-   let message : String = create_email_message(&stations_to_create, &stations_to_update);
-   if !message.is_empty() {
-      let subject : String = "SIS poller notification".to_string();
-      let random_number : u32 = rand::random_range(0..=100000);
-      let message_identifier : String = "sisUpdateMessage_".to_string()
-                                      + &random_number.to_string(); // Could also be sisTestMessage
-      let post_result = post_to_api(&parameters.api_uri,
-                                    &parameters.api_key,
-                                    &subject,
-                                    &message,
-                                    &parameters.api_notification_topic,
-                                    &parameters.api_notification_type,
-                                    &message_identifier);
-      match post_result {
-         Ok(post_result) => {
-            log::info!("Succesfully put message to API {post_result:?}");
+   let stations_to_update : Vec<StationTime>;
+   if command_line_arguments.use_sqlite3 {
+      let stations_to_update_result
+          = database::sqlite3::update_stations(parameters.sqlite3_file.as_str(), 
+                                               &candidate_stations_to_update);
+      match stations_to_update_result {
+         Ok(result) => {
+            stations_to_update = result.clone();
          }
          Err(error) => {
-            log::warn!("Failed to post message to API: {error:?}");
-            return Err("Failed to post message to API".into());
+            log::warn!("Error updating stations to sqlite3: {error:?}");
+            return Err("Failed to add updating to sqlite3 database".into());
          }
-     }
+      }   
    }
    else {
-      log::info!("No updates detected");
+      stations_to_update
+         = database::postgres::update_stations(database_connection_uri.as_str(),
+                                               parameters.database_schema.as_str(),
+                                               &candidate_stations_to_update)?;
+   }
+
+   if !command_line_arguments.initialize {
+      let message : String = create_email_message(&stations_to_create, &stations_to_update);
+      if !message.is_empty() {
+         let subject : String = "SIS poller notification".to_string();
+         let random_number : u32 = rand::random_range(0..=100000);
+         let message_identifier : String = "sisUpdateMessage_".to_string()
+                                         + &random_number.to_string(); // Could also be sisTestMessage
+         let post_result = post_to_api(&parameters.api_uri,
+                                       &parameters.api_key,
+                                       &subject,
+                                       &message,
+                                       &parameters.api_notification_topic,
+                                       &parameters.api_notification_type,
+                                       &message_identifier);
+         match post_result {
+            Ok(post_result) => {
+               log::info!("Succesfully put message to API {post_result:?}");
+            }
+            Err(error) => {
+               log::warn!("Failed to post message to API: {error:?}");
+               return Err("Failed to post message to API".into());
+            }
+         }
+      }
+      else {
+         log::info!("No updates detected");
+      }
+   }
+   else {
+      log::info!("Initialization mode - no updates posted to API");
    }
    Ok(())
 }
