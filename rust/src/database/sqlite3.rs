@@ -1,6 +1,7 @@
 use crate::datatypes::station_time::StationTime;
 
 fn create_xml_table(sqlite3_file : &str ) {
+   log::debug!("Checking if {} exists", sqlite3_file);
    let sqlite_database_exists = std::fs::exists(sqlite3_file).unwrap();
    if !sqlite_database_exists {
       log::info!("Creating sqlite3 database {}", sqlite3_file);
@@ -53,7 +54,7 @@ pub fn update_stations(sqlite3_file : &str,
       for station in stations_to_update.iter() {
          let time : i64 = station.time as i64;
          let result = connection.execute(
-             "UPDATE xml_update SET last_modified TO DATETIME(?1, 'unixepoch') WHERE xml_file = ?2",
+             "UPDATE xml_update SET last_modified = DATETIME(?1, 'unixepoch') WHERE xml_file = ?2",
              (&time, &station.station), );
          match result {
             Ok(result) => {
