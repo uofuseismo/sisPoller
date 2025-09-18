@@ -16,7 +16,7 @@ RUN apt-get update &&\
 # Create a user
 #RUN useradd -ms /bin/bash sispoller
 
-#ADD --chmod=755 sis_poller /usr/local/bin
+ADD --chmod=755 sis_poller /usr/local/bin
 
 #USER sispoller
 WORKDIR /home/sispoller
