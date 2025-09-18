@@ -1,6 +1,6 @@
 # Purpose: Helps CircleCI create the K8s deploy SIS poller image.
 # Usage: buildah build -t sispoller:latest -f Dockerfile.deploy
-# Afterwards: podman run -it -u sispoller sispoller
+# Afterwards: podman run -it sispoller
 FROM debian:latest as sispoller
 
 RUN apt-get update &&\
@@ -12,11 +12,12 @@ RUN apt-get update &&\
     apt-get clean &&\
     rm -r /var/lib/apt/lists/*
 
+# Handle users in k8s
 # Create a user
-RUN useradd -ms /bin/bash sispoller
+#RUN useradd -ms /bin/bash sispoller
 
-ADD --chmod=755 sis_poller /usr/local/bin
+#ADD --chmod=755 sis_poller /usr/local/bin
 
-USER sispoller
+#USER sispoller
 WORKDIR /home/sispoller
 ENV PATH="$PATH:./"
