@@ -575,9 +575,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
    let base_uri = String::from("https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/");
    //let networks = vec!["UU"];
-   let networks = vec!["UU", "WY", "IW", "US"];
+   let networks = vec!["UU", "WY", "IW", "US", "C0"];
    let iw_keeper_stations = vec!["FLWY", "IMW", "LOHW", "MOOW", "REDW", "RWWY", "SNOW", "TPAW"];
    let us_keeper_stations = vec!["AHID", "BOZ", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "LKWY", "MVCO", "TPNV", "WUAZ"];
+   let c0_keeper_stations = vec!["MOFF"];
    let mut sis_stations : Vec<StationTime> = Vec::new();
    for network in networks.iter() {
        let mut uri : String = base_uri.clone();
@@ -596,6 +597,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              }
              else if *network == "US" {
                 keeper_stations = us_keeper_stations.clone();
+             }
+             else if *network == "C0" {
+                keeper_stations = c0_keeper_stations.clone();
              }
              let stations = parse_page(&html_text, &network, &keeper_stations);
              log::info!("Unpacked {} stations for network {}", stations.len(), network); 
@@ -628,12 +632,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err("Failed to add stations to sqlite3 database".into());
          }   
       }
+      log::info!("Created {} stations in sqlite3", stations_to_create.len());
    }
    else {
       stations_to_create
           = database::postgres::create_stations(database_connection_uri.as_str(),
                                                 parameters.database_schema.as_str(),
                                                 &candidate_stations_to_create)?;
+      log::info!("Created {} stations in postgres", stations_to_create.len());
    }
 
    let candidate_stations_to_update = find_stations_to_update(&database_stations, &sis_stations);
@@ -654,12 +660,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err("Failed to add updating to sqlite3 database".into());
          }
       }   
+      log::info!("Updated {} stations in sqlite3", stations_to_update.len());
    }
    else {
       stations_to_update
          = database::postgres::update_stations(database_connection_uri.as_str(),
                                                parameters.database_schema.as_str(),
                                                &candidate_stations_to_update)?;
+      log::info!("Updated {} stations in postgres", stations_to_update.len());
    }
 
    if !command_line_arguments.initialize {
