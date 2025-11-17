@@ -575,10 +575,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
    let base_uri = String::from("https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/");
    //let networks = vec!["UU"];
-   let networks = vec!["UU", "WY", "IW", "US", "C0"];
+   let networks = vec!["UU", "WY", "IW", "US", "C0", "NN"];
    let iw_keeper_stations = vec!["FLWY", "IMW", "LOHW", "MOOW", "REDW", "RWWY", "SNOW", "TPAW"];
    let us_keeper_stations = vec!["AHID", "BOZ", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "LKWY", "MVCO", "TPNV", "WUAZ"];
    let c0_keeper_stations = vec!["MOFF"];
+   let nn_keeper_stations = vec!["PIO", "V12A", "R11B", "PRN", "SHP", "WTNK", "SPR3", "Q12A"];
    let mut sis_stations : Vec<StationTime> = Vec::new();
    for network in networks.iter() {
        let mut uri : String = base_uri.clone();
@@ -600,6 +601,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              }
              else if *network == "C0" {
                 keeper_stations = c0_keeper_stations.clone();
+             }
+             else if *network == "NN" {
+                keeper_stations = nn_keeper_stations.clone();
              }
              let stations = parse_page(&html_text, &network, &keeper_stations);
              log::info!("Unpacked {} stations for network {}", stations.len(), network); 
