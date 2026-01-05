@@ -1,7 +1,7 @@
 use clap::Parser;
 
 static DEFAULT_INI_FILE: &str = "./sisPoller.ini"; 
-
+static DEFAULT_REGION: &str = "all";
 /*
 #[derive(Clone)]
 #[derive(Debug)]
@@ -42,6 +42,8 @@ struct CommandLineArguments {
    use_sqlite3: bool,
    #[arg(long, default_value_t = false)]
    initialize: bool, 
+   #[arg(long, default_value = DEFAULT_REGION)]
+   region: String,
 }
 
 /*
@@ -575,11 +577,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
    let base_uri = String::from("https://files.anss-sis.scsn.org/production/FDSNStationXML1.1/");
    //let networks = vec!["UU"];
+   let networks : Vec<&str>;// = Vec::new();
+   let iw_keeper_stations : Vec<&str>; // = Vec::new();
+   let us_keeper_stations : Vec<&str>; // = Vec::new();
+   let mut c0_keeper_stations : Vec<&str> = Vec::new();
+   let mut nn_keeper_stations : Vec<&str> = Vec::new();
+   if command_line_arguments.region.trim().to_ascii_lowercase() == "utah" {
+      log::info!("Using region {}", command_line_arguments.region);
+      networks = vec!["UU", "IW", "US", "C0", "NN"];
+      iw_keeper_stations = vec!["RWWY"];
+      us_keeper_stations = vec!["AHID", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "MVCO", "TPNV", "WUAZ"];
+      c0_keeper_stations = vec!["MOFF"];
+      nn_keeper_stations = vec!["PIO", "V12A", "R11B", "PRN", "SHP", "WTNK", "SPR3", "Q12A"];
+   }   
+   else if command_line_arguments.region.trim().to_ascii_lowercase() == "ynp" {
+      log::info!("Using region {}", command_line_arguments.region);
+      networks = vec!["WY", "IW", "US"];
+      iw_keeper_stations = vec!["FLWY", "IMW", "LOHW", "MOOW", "REDW",  "SNOW", "TPAW"];
+      us_keeper_stations = vec!["LKWY"];
+   }
+   else {
+      if command_line_arguments.region.trim().to_ascii_lowercase() != "all" {
+         log::info!("Defaulting to region all");
+      }
+      else {
+         log::info!("Using region {}", command_line_arguments.region);
+      }
+      networks = vec!["UU", "WY", "IW", "US", "C0", "NN"];
+      iw_keeper_stations = vec!["FLWY", "IMW", "LOHW", "MOOW", "REDW", "RWWY", "SNOW", "TPAW"];
+      us_keeper_stations = vec!["AHID", "BOZ", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "LKWY", "MVCO", "TPNV", "WUAZ"];
+      c0_keeper_stations = vec!["MOFF"];
+      nn_keeper_stations = vec!["PIO", "V12A", "R11B", "PRN", "SHP", "WTNK", "SPR3", "Q12A"];
+   }
+   /*
    let networks = vec!["UU", "WY", "IW", "US", "C0", "NN"];
    let iw_keeper_stations = vec!["FLWY", "IMW", "LOHW", "MOOW", "REDW", "RWWY", "SNOW", "TPAW"];
    let us_keeper_stations = vec!["AHID", "BOZ", "BW06", "DUG",  "ELK",  "HLID", "HWUT", "ISCO", "LKWY", "MVCO", "TPNV", "WUAZ"];
    let c0_keeper_stations = vec!["MOFF"];
    let nn_keeper_stations = vec!["PIO", "V12A", "R11B", "PRN", "SHP", "WTNK", "SPR3", "Q12A"];
+   */
    let mut sis_stations : Vec<StationTime> = Vec::new();
    for network in networks.iter() {
        let mut uri : String = base_uri.clone();
@@ -604,6 +640,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              }
              else if *network == "NN" {
                 keeper_stations = nn_keeper_stations.clone();
+             }
+             if keeper_stations.is_empty() {
+                continue;
              }
              let stations = parse_page(&html_text, &network, &keeper_stations);
              log::info!("Unpacked {} stations for network {}", stations.len(), network); 
