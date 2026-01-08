@@ -640,9 +640,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              else if *network == "NN" {
                 keeper_stations = nn_keeper_stations.clone();
              }
-             if keeper_stations.is_empty() {
-                continue;
-             }
              let stations = parse_page(&html_text, &network, &keeper_stations);
              log::info!("Unpacked {} stations for network {}", stations.len(), network); 
              sis_stations.extend(stations); 
